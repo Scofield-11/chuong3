@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="vi" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPA Mindmap & Strategy Lab - Chương 3: Phân tích nội bộ & Quốc tế hóa</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- D3.js & Markmap CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.17.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.17.0"></script>
+
+  <style>
+    #mindmap {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #mindmap:active {
+      cursor: grabbing;
+    }
+    .markmap-node {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      cursor: pointer;
+    }
+    .markmap-foreign {
+      transition: transform 0.15s ease, color 0.15s ease;
+    }
+    .markmap-foreign:hover {
+      color: #4f46e5 !important;
+      font-weight: 600;
+    }
+    .dark .markmap-node text,
+    .dark .markmap-foreign {
+      color: #f1f5f9 !important;
+      fill: #f1f5f9 !important;
+    }
+    .dark .markmap-foreign:hover {
+      color: #818cf8 !important;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-screen w-screen overflow-hidden flex flex-col select-none transition-colors duration-200">
+
+  <!-- HEADER & THANH ĐIỀU HƯỚNG -->
+  <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 lg:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-sm z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold text-lg shadow">
+        C3
+      </div>
+      <div>
+        <h1 class="text-sm md:text-base font-bold text-slate-900 dark:text-white leading-tight">
+          CHƯƠNG 3: PHÂN TÍCH NỘI BỘ & NĂNG LỰC QUỐC TẾ HÓA
+        </h1>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400">
+          Interactive Mindmap & Strategy Simulator • Nhấp vào nhánh để tra cứu hoặc mở Phòng Lab Thực Hành
+        </p>
+      </div>
+    </div>
+
+    <!-- Bộ lọc nhanh theo Mục lớn -->
+    <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-700/60 p-1 rounded-lg text-xs font-medium">
+      <button onclick="filterBranch('all')" id="filter-all" class="filter-btn px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm transition">
+        Toàn bộ Chương 3
+      </button>
+      <button onclick="filterBranch('3.1')" id="filter-3.1" class="filter-btn px-2.5 py-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 transition">
+        3.1. Chuỗi giá trị & Nội lực
+      </button>
+      <button onclick="filterBranch('3.2')" id="filter-3.2" class="filter-btn px-2.5 py-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 transition">
+        3.2. Quốc tế hóa
+      </button>
+      <button onclick="filterBranch('3.3')" id="filter-3.3" class="filter-btn px-2.5 py-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 transition">
+        3.3. SWOT • BCG • McKinsey
+      </button>
+    </div>
+
+    <!-- Cụm nút chức năng bên phải -->
+    <div class="flex items-center gap-2">
+      <button onclick="openLabTab()" class="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-sm flex items-center gap-1">
+        <span>🧪 Phòng Lab Mô phỏng</span>
+      </button>
+      <button onclick="toggleDrawer()" class="px-3 py-1.5 text-xs font-semibold bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-700 rounded-lg hover:bg-brand-100 transition">
+        📚 Cẩm nang
+      </button>
+      <button onclick="exportSVG()" class="px-2.5 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 transition" title="Tải sơ đồ định dạng SVG">
+        ⬇️ SVG
+      </button>
+      <button onclick="toggleTheme()" id="btn-theme" class="p-1.5 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Đổi giao diện Sáng/Tối">
+        🌙
+      </button>
+    </div>
+  </header>
+
+  <!-- KHU VỰC CHÍNH: MINDMAP + DRAWER ĐA NĂNG -->
+  <div class="flex-1 flex relative overflow-hidden">
+
+    <!-- VÙNG VẼ MINDMAP -->
+    <main class="flex-1 relative bg-slate-50 dark:bg-slate-900 transition-colors">
+      <!-- Bảng hướng dẫn góc trái trên -->
+      <div class="absolute top-4 left-4 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm max-w-xs hidden sm:block">
+        <div class="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center justify-between">
+          <span>Hướng dẫn tương tác</span>
+          <span class="text-[10px] px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded font-bold">SPA v3.0 Full</span>
+        </div>
+        <ul class="text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5">
+          <li>• <b>Nhấp vào chữ:</b> Xem giải thích & Case Study</li>
+          <li>• <b>Nhấp nút tròn:</b> Đóng / Mở nhánh con</li>
+          <li>• <b>Phòng Lab:</b> Mô phỏng VRIO, Khoảng cách & McKinsey</li>
+        </ul>
+      </div>
+
+      <!-- Đồ thị SVG -->
+      <svg id="mindmap"></svg>
+
+      <!-- Thanh điều khiển nổi (Floating Dock) dưới đáy -->
+      <div class="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 bg-white/95 dark:bg-slate-800/95 backdrop-blur border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full shadow-lg">
+        <button onclick="zoomMap(1.25)" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition">
+          ➕ Phóng to
+        </button>
+        <button onclick="zoomMap(0.8)" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition">
+          ➖ Thu nhỏ
+        </button>
+        <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-0.5"></div>
+        <button onclick="fitMap()" class="px-2.5 py-1 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-slate-700 rounded-full transition">
+          🎯 Căn giữa
+        </button>
+        <div class="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-0.5"></div>
+        <button onclick="setFoldLevel(2)" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition">
+          📁 Thu gọn (Cấp 2)
+        </button>
+        <button onclick="setFoldLevel(99)" class="px-2.5 py-1 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition">
+          📂 Mở toàn bộ
+        </button>
+      </div>
+    </main>
+
+    <!-- SIDEBAR / DRAWER PHÂN TÍCH & PHÒNG LAB CHIẾN LƯỢC -->
+    <aside id="strategy-drawer" class="w-full sm:w-[460px] lg:w-[540px] bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col shadow-xl z-20 transition-all duration-300 select-text">
+      <!-- Drawer Header & 4 Tabs -->
+      <div class="p-3.5 border-b border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between mb-2.5">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+            Không gian Phân tích & Thực hành Chiến lược
+          </h2>
+          <button onclick="toggleDrawer()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs px-2 py-0.5 rounded">
+            ✕ Đóng
+          </button>
+        </div>
+
+        <!-- 4 Chế độ xem trong Drawer -->
+        <div class="grid grid-cols-4 gap-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg text-[11px] font-semibold">
+          <button onclick="switchTab('inspector')" id="tab-inspector" class="drawer-tab py-1.5 rounded-md bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm">
+            🔍 Lý thuyết
+          </button>
+          <button onclick="switchTab('casestudy')" id="tab-casestudy" class="drawer-tab py-1.5 rounded-md text-slate-600 dark:text-slate-300">
+            🏢 Case Study
+          </button>
+          <button onclick="switchTab('lab')" id="tab-lab" class="drawer-tab py-1.5 rounded-md text-slate-600 dark:text-slate-300">
+            🧪 Phòng Lab
+          </button>
+          <button onclick="switchTab('review')" id="tab-review" class="drawer-tab py-1.5 rounded-md text-slate-600 dark:text-slate-300">
+            🎯 Quiz & Ôn tập
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 1: CHI TIẾT LÝ THUYẾT NHÁNH -->
+      <div id="panel-inspector" class="flex-1 overflow-y-auto p-5 space-y-4">
+        <div>
+          <label class="block text-[11px] font-semibold uppercase text-slate-400 mb-1">
+            Chọn nhanh chủ đề hoặc nhấp trực tiếp trên Mindmap:
+          </label>
+          <select id="topic-select" onchange="renderKnowledgeTopic(this.value)" class="w-full text-xs bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="overview">0. Tổng quan & Mục tiêu Chương 3</option>
+            <option value="porter">3.1.1. Mô hình chuỗi giá trị Porter (1985) & 5 Hạn chế</option>
+            <option value="generic">3.1.1. Ba chiến lược cạnh tranh (Chi phí, Khác biệt, Tập trung)</option>
+            <option value="vrio">3.1.2. Nguồn lực, Khung VRIN (1991), VRIO (1995) & Năng lực động</option>
+            <option value="intl">3.2. Đánh giá 5 Năng lực quốc tế hóa</option>
+            <option value="gap">3.2.1 & 3.2.2. Khoảng cách năng lực & Khung Build - Borrow - Buy</option>
+            <option value="swot">3.3.1. Ma trận SWOT & 4 Nhóm phối hợp chiến lược</option>
+            <option value="bcg">3.3.2. Ma trận BCG (Tăng trưởng - Thị phần)</option>
+            <option value="mckinsey">3.3.3. Ma trận McKinsey (GE 9 ô)</option>
+          </select>
+        </div>
+        <div id="knowledge-content" class="space-y-4 text-sm leading-relaxed"></div>
+      </div>
+
+      <!-- TAB 2: CASE STUDY THỰC TIỄN -->
+      <div id="panel-casestudy" class="flex-1 overflow-y-auto p-5 space-y-5 hidden">
+        <div class="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4">
+          <h3 class="font-bold text-indigo-900 dark:text-indigo-200 text-sm mb-1">
+            Điểm xuất phát đối lập: Vinamilk vs. Nestlé
+          </h3>
+          <p class="text-xs text-indigo-800 dark:text-indigo-300 leading-relaxed">
+            <b>Vinamilk:</b> Tự thân kiến tạo nội lực từ trong nước (trang trại công nghệ cao, >200.000 điểm bán) để vươn ra 63 quốc gia (năm 2024 đạt gần 11.000 tỷ đồng từ nước ngoài).<br/>
+            <b>Nestlé:</b> Gã khổng lồ >150 năm tuổi, sở hữu sẵn năng lực R&D toàn cầu, >30 thương hiệu tỷ đô và mạng lưới tại 185 quốc gia trước khi bước vào Việt Nam năm 1995.
+          </p>
+        </div>
+
+        <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+          <div class="bg-slate-100 dark:bg-slate-700 px-4 py-2.5 font-bold text-xs uppercase tracking-wider">
+            1. Đối sánh Chuỗi giá trị & Năng lực Quốc tế hóa
+          </div>
+          <div class="p-4 space-y-3 text-xs">
+            <div>
+              <span class="font-bold text-brand-600 dark:text-brand-400">Hậu cần đầu vào & Thu mua:</span>
+              <p class="text-slate-600 dark:text-slate-300 mt-0.5">
+                • <b>Vinamilk:</b> Sở hữu trang trại chuẩn Global G.A.P, hữu cơ, gắn chip IoT quản lý từng cá thể bò; nhập khẩu bột sữa từ New Zealand, Mỹ, châu Âu kết hợp thu mua từ nông dân.<br/>
+                • <b>Nestlé:</b> Chiến lược Tạo giá trị chung (CSV) qua <i>Nescafé Plan</i> — liên kết trực tiếp với nông dân Tây Nguyên (thu mua 20–25% sản lượng cà phê Việt Nam).
+              </p>
+            </div>
+            <hr class="border-slate-200 dark:border-slate-700" />
+            <div>
+              <span class="font-bold text-brand-600 dark:text-brand-400">Đo lường khoảng cách năng lực (Thang 1-5) của Vinamilk:</span>
+              <p class="text-slate-600 dark:text-slate-300 mt-0.5">
+                • <b>Sản phẩm & Công nghệ / Tài chính:</b> Đạt mức <b>4/5</b>.<br/>
+                • <b>Marketing quốc tế & Tổ chức đa văn hóa:</b> Thị trường phát triển đòi hỏi <b>4.5/5</b>, trong khi năng lực hiện tại ở mức <b>3/5 – 3.5/5</b>.
+              </p>
+            </div>
+            <hr class="border-slate-200 dark:border-slate-700" />
+            <div>
+              <span class="font-bold text-brand-600 dark:text-brand-400">Chiến lược Build – Borrow – Buy của Vinamilk:</span>
+              <ul class="list-disc pl-4 text-slate-600 dark:text-slate-300 mt-1 space-y-1">
+                <li><b>Build (Tự xây dựng):</b> Tự tích lũy năng lực quản trị đa văn hóa tại Angkor Milk (Campuchia) và Driftwood (Mỹ).</li>
+                <li><b>Borrow (Vay mượn/Liên kết):</b> Liên doanh tại New Zealand để tận dụng nguồn nguyên liệu và công nghệ chế biến.</li>
+                <li><b>Buy (Mua/M&A):</b> Mua lại Driftwood (Mỹ) và nắm cổ phần chi phối tại Angkor Milk (Campuchia) để có ngay hệ thống nhà máy và tệp khách hàng.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+          <div class="bg-slate-100 dark:bg-slate-700 px-4 py-2.5 font-bold text-xs uppercase tracking-wider">
+            2. Case Study Khung VRIN (1991) & VRIO (1995)
+          </div>
+          <div class="p-4 space-y-3 text-xs">
+            <div>
+              <span class="font-bold text-emerald-600 dark:text-emerald-400">Apple (Hệ điều hành iOS & Hệ sinh thái):</span>
+              <p class="text-slate-600 dark:text-slate-300 mt-0.5">
+                Thỏa mãn cả 4 tiêu chí <b>V - R - I - N</b>: Kết nối mượt mà iPhone/Mac/iPad/iCloud giữ chân khách hàng (V); hiếm hãng nào đồng bộ cả phần cứng lẫn phần mềm cao cấp (R); tích hợp sâu từ chip Apple Silicon đến kho ứng dụng tích lũy nhiều thập kỷ (I); không có hệ sinh thái thay thế tương đương trực tiếp (N).
+              </p>
+            </div>
+            <hr class="border-slate-200 dark:border-slate-700" />
+            <div>
+              <span class="font-bold text-sky-600 dark:text-sky-400">Microsoft Azure (Vai trò quyết định của chữ "O" trong VRIO):</span>
+              <p class="text-slate-600 dark:text-slate-300 mt-0.5">
+                Hạ tầng đám mây đạt V-R-I-N chỉ thực sự biến thành cỗ máy thương mại nhờ chữ <b>O (Organization)</b>: Microsoft tái cấu trúc toàn tập đoàn sang chiến lược <b>"Cloud-first"</b>, đồng bộ cơ cấu tổ chức, kiểm soát nội bộ và đào tạo đội ngũ nhân sự toàn cầu.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: PHÒNG LAB MÔ PHỎNG CHIẾN LƯỢC (INTERACTIVE STRATEGY LAB) -->
+      <div id="panel-lab" class="flex-1 overflow-y-auto p-5 space-y-6 hidden text-xs">
+
+        <!-- CÔNG CỤ 1: BỘ THẨM ĐỊNH VRIN / VRIO -->
+        <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+          <div class="bg-brand-600 text-white px-4 py-2.5 flex items-center justify-between">
+            <span class="font-bold uppercase tracking-wider">1. Bộ Thẩm định Nguồn lực VRIN / VRIO</span>
+            <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded">Mục 3.1.2</span>
+          </div>
+          <div class="p-4 space-y-3 bg-white dark:bg-slate-800">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                Chọn nhanh nguồn lực mẫu từ bài giảng để kiểm tra:
+              </label>
+              <div class="flex flex-wrap gap-1.5">
+                <button onclick="loadVrioPreset('vnm_dist')" class="px-2 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-brand-50 rounded text-[11px] font-medium">
+                  Mạng lưới 250k điểm bán Vinamilk
+                </button>
+                <button onclick="loadVrioPreset('vnm_farm')" class="px-2 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-brand-50 rounded text-[11px] font-medium">
+                  Trang trại bò sữa hiện đại
+                </button>
+                <button onclick="loadVrioPreset('vnm_pack')" class="px-2 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-brand-50 rounded text-[11px] font-medium">
+                  Công thức / Bao bì mới
+                </button>
+                <button onclick="loadVrioPreset('azure_no_o')" class="px-2 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-brand-50 rounded text-[11px] font-medium">
+                  Hạ tầng đám mây nhưng thiếu Tổ chức (O)
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input type="checkbox" id="chk-v" onchange="evaluateVRIO()" checked class="rounded text-brand-600" />
+                <span><b>V</b> - Có giá trị (Valuable)</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input type="checkbox" id="chk-r" onchange="evaluateVRIO()" checked class="rounded text-brand-600" />
+                <span><b>R</b> - Hiếm (Rare)</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input type="checkbox" id="chk-i" onchange="evaluateVRIO()" checked class="rounded text-brand-600" />
+                <span><b>I</b> - Khó bắt chước (Inimitable)</span>
+              </label>
+              <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer">
+                <input type="checkbox" id="chk-o" onchange="evaluateVRIO()" checked class="rounded text-brand-600" />
+                <span><b>N & O</b> - Khó thay thế & Tổ chức đồng bộ</span>
+              </label>
+            </div>
+
+            <div id="vrio-result" class="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800"></div>
+          </div>
+        </div>
+
+        <!-- CÔNG CỤ 2: ĐO KHOẢNG CÁCH NĂNG LỰC QUỐC TẾ HÓA & BUILD-BORROW-BUY -->
+        <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+          <div class="bg-indigo-600 text-white px-4 py-2.5 flex items-center justify-between">
+            <span class="font-bold uppercase tracking-wider">2. Đo Khoảng cách Quốc tế hóa & Build-Borrow-Buy</span>
+            <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded">Mục 3.2.1 & 3.2.2</span>
+          </div>
+          <div class="p-4 space-y-3 bg-white dark:bg-slate-800">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] text-slate-500">Mẫu dữ liệu (Thang điểm 1 - 5):</span>
+              <div class="space-x-1">
+                <button onclick="loadGapPreset('vinamilk')" class="px-2 py-0.5 bg-indigo-50 dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 rounded text-[11px] font-semibold">
+                  Mẫu Vinamilk
+                </button>
+                <button onclick="loadGapPreset('nestle')" class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-[11px] font-medium">
+                  Mẫu Nestlé
+                </button>
+              </div>
+            </div>
+
+            <!-- 2 nhóm đại diện điển hình từ bài giảng -->
+            <div class="space-y-2.5 pt-1">
+              <div class="p-2.5 bg-slate-50 dark:bg-slate-700/40 rounded-lg space-y-1.5">
+                <div class="flex justify-between font-semibold">
+                  <span>Năng lực Marketing quốc tế & Tổ chức đa văn hóa</span>
+                  <span id="gap-val-display" class="text-brand-600 dark:text-brand-400">Hiện tại: 3.0 | Yêu cầu: 4.5</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <label class="block text-slate-500">Năng lực hiện có (1-5):</label>
+                    <input type="range" id="gap-curr" min="1" max="5" step="0.5" value="3.0" oninput="calculateGap()" class="w-full accent-brand-600" />
+                  </div>
+                  <div>
+                    <label class="block text-slate-500">Yêu cầu thị trường (1-5):</label>
+                    <input type="range" id="gap-req" min="1" max="5" step="0.5" value="4.5" oninput="calculateGap()" class="w-full accent-rose-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="gap-result" class="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800"></div>
+          </div>
+        </div>
+
+        <!-- CÔNG CỤ 3: MÔ PHỎNG MA TRẬN MCKINSEY (GE 9 Ô) -->
+        <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+          <div class="bg-emerald-600 text-white px-4 py-2.5 flex items-center justify-between">
+            <span class="font-bold uppercase tracking-wider">3. Tính điểm & Định vị Ma trận McKinsey (9 ô)</span>
+            <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded">Mục 3.3.3</span>
+          </div>
+          <div class="p-4 space-y-3 bg-white dark:bg-slate-800">
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">
+              Bảng chấm điểm chuẩn theo bài giảng (Tổng trọng số = 1,00; Điểm từ 1 đến 5):
+            </p>
+            <div class="space-y-1.5 text-[11px]">
+              <div class="flex items-center justify-between">
+                <span>• Quy mô thị trường (Trọng số <b>0,30</b>):</span>
+                <input type="number" id="mck-c1" min="1" max="5" value="4" onchange="updateMcKinsey()" class="w-14 px-2 py-0.5 border rounded bg-slate-50 dark:bg-slate-700 text-center font-bold" />
+              </div>
+              <div class="flex items-center justify-between">
+                <span>• Tốc độ tăng trưởng (Trọng số <b>0,25</b>):</span>
+                <input type="number" id="mck-c2" min="1" max="5" value="3" onchange="updateMcKinsey()" class="w-14 px-2 py-0.5 border rounded bg-slate-50 dark:bg-slate-700 text-center font-bold" />
+              </div>
+              <div class="flex items-center justify-between">
+                <span>• Mức sinh lời ngành (Trọng số <b>0,25</b>):</span>
+                <input type="number" id="mck-c3" min="1" max="5" value="3" onchange="updateMcKinsey()" class="w-14 px-2 py-0.5 border rounded bg-slate-50 dark:bg-slate-700 text-center font-bold" />
+              </div>
+              <div class="flex items-center justify-between">
+                <span>• Cường độ cạnh tranh - đảo chiều (Trọng số <b>0,20</b>):</span>
+                <input type="number" id="mck-c4" min="1" max="5" value="2" onchange="updateMcKinsey()" class="w-14 px-2 py-0.5 border rounded bg-slate-50 dark:bg-slate-700 text-center font-bold" />
+              </div>
+              <div class="pt-1 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <span>• Điểm tổng hợp <b>Vị thế cạnh tranh DN</b> (1.0 - 5.0):</span>
+                <input type="number" id="mck-pos" min="1" max="5" step="0.1" value="3.8" onchange="updateMcKinsey()" class="w-16 px-2 py-0.5 border rounded bg-slate-50 dark:bg-slate-700 text-center font-bold text-brand-600" />
+              </div>
+            </div>
+
+            <!-- Lưới 9 ô trực quan -->
+            <div class="pt-2">
+              <div class="text-[10px] font-bold uppercase text-center text-slate-400 mb-1">
+                Vị thế cạnh tranh: Mạnh (Trái) → Trung bình (Giữa) → Yếu (Phải)
+              </div>
+              <div id="mckinsey-grid" class="grid grid-cols-3 gap-1.5 text-center text-[10px] font-semibold"></div>
+            </div>
+
+            <div id="mckinsey-summary" class="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TAB 4: TRẮC NGHIỆM TƯƠNG TÁC (QUIZ) & CÂU HỎI ÔN TẬP -->
+      <div id="panel-review" class="flex-1 overflow-y-auto p-5 space-y-5 hidden text-xs">
+        <!-- Khu vực Trắc nghiệm nhanh -->
+        <div class="border border-brand-200 dark:border-brand-800 rounded-xl overflow-hidden">
+          <div class="bg-brand-50 dark:bg-brand-950/60 px-4 py-2.5 flex items-center justify-between border-b border-brand-200 dark:border-brand-800">
+            <span class="font-bold text-brand-800 dark:text-brand-200">🎯 Trắc nghiệm Kiểm tra Nhanh (5 Câu hỏi cốt lõi)</span>
+            <button onclick="resetQuiz()" class="text-[11px] text-brand-600 hover:underline">Làm lại</button>
+          </div>
+          <div id="quiz-container" class="p-4 space-y-4"></div>
+        </div>
+
+        <hr class="border-slate-200 dark:border-slate-700" />
+
+        <div>
+          <h3 class="font-bold text-sm text-brand-600 dark:text-brand-400 mb-2">
+            9 Câu hỏi ôn tập trọng tâm
+          </h3>
+          <ol class="list-decimal pl-4 space-y-1.5 text-slate-700 dark:text-slate-300">
+            <li>Vì sao phân tích nội bộ là phần bổ sung không thể thiếu cho phân tích môi trường bên ngoài?</li>
+            <li>Trình bày mô hình chuỗi giá trị của Porter với hai nhóm hoạt động. Vì sao lợi thế cạnh tranh thường chỉ tập trung ở một số khâu?</li>
+            <li>Phân biệt nguồn lực và năng lực. Cho ví dụ minh họa từ một doanh nghiệp bất kỳ.</li>
+            <li>Một nguồn lực cần thỏa mãn những tiêu chí nào theo khung VRIN để tạo lợi thế bền vững? Bốn tiêu chí này quan hệ với nhau ra sao?</li>
+            <li>Năng lực động là gì và vì sao đặc biệt quan trọng trong môi trường kinh doanh quốc tế biến động?</li>
+            <li>Năng lực quốc tế hóa gồm những nhóm nào? Vì sao doanh nghiệp mạnh ở thị trường nội địa chưa chắc thành công khi ra nước ngoài?</li>
+            <li>Khi phát hiện khoảng cách năng lực, doanh nghiệp có ba con đường lấp đầy là Xây dựng (Build), Vay mượn (Borrow) hoặc Mua (Buy). Trình bày logic lựa chọn và cho ví dụ.</li>
+            <li>Trình bày ma trận SWOT và bốn nhóm phối hợp chiến lược (SO, WO, ST, WT).</li>
+            <li>So sánh ma trận BCG và ma trận McKinsey về tiêu chí, ưu điểm và hạn chế.</li>
+          </ol>
+        </div>
+
+        <hr class="border-slate-200 dark:border-slate-700" />
+
+        <div>
+          <h3 class="font-bold text-sm text-brand-600 dark:text-brand-400 mb-2">
+            4 Câu hỏi thảo luận & 6 Bài tập vận dụng
+          </h3>
+          <ul class="list-disc pl-4 space-y-1.5 text-slate-700 dark:text-slate-300">
+            <li><b>Thảo luận:</b> (1) Áp dụng VRIN cho 3 nguồn lực chính của DN dự án; (2) Đặt sản phẩm lên ma trận BCG; (3) So sánh năng lực quốc tế hóa với Vinamilk; (4) Bình luận ý kiến cho rằng SWOT đã lỗi thời.</li>
+            <li><b>Bài tập vận dụng:</b> Vẽ chuỗi giá trị chỉ rõ 2–3 công đoạn tạo lợi thế; lập bảng VRIN phân loại lợi thế; lập SWOT có bằng chứng kèm ít nhất 2 phối hợp (1 SO, 1 WT); định vị 3–4 sản phẩm lên BCG hoặc McKinsey trong báo cáo 2–3 trang.</li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- JAVASCRIPT LOGIC: MINDMAP, KNOWLEDGE DB, SIMULATORS & QUIZ -->
+  <script>
+    // 1. DỮ LIỆU MARKDOWN CHUẨN XÁC THEO PHÂN CẤP YÊU CẦU
+    const branches = {
+      '3.1': `## 3.1. Phân tích chuỗi giá trị và năng lực nội bộ
+### Mô hình chuỗi giá trị Porter (1985)
+- **Hoạt động chính:** Hậu cần đầu vào, Sản xuất, Hậu cần đầu ra, Marketing & Bán hàng, Dịch vụ khách hàng
+- **Hoạt động hỗ trợ:** Cơ sở hạ tầng, Quản trị nhân lực, Phát triển công nghệ, Mua sắm
+### Các chiến lược cạnh tranh
+- **Dẫn đầu về chi phí** (Ví dụ: MWG, Vietjet)
+- **Khác biệt hóa** (Ví dụ: Apple, Vinamilk)
+- **Tập trung** (Thị trường ngách)
+### Nguồn lực, năng lực và lợi thế cạnh tranh
+- **Khung VRIN (1991):** Có giá trị (V), Hiếm (R), Khó bắt chước (I), Khó thay thế (N)
+- **Bản nâng cấp VRIO (1995):** Thêm chữ O (Tổ chức)
+- **Năng lực động:** Thích nghi môi trường biến động`,
+
+      '3.2': `## 3.2. Đánh giá năng lực quốc tế hóa
+- **5 năng lực:** Sản phẩm & Công nghệ, Tài chính, Tổ chức đa văn hóa, Marketing quốc tế, Kinh nghiệm
+- **Phân tích khoảng cách năng lực:** So sánh năng lực hiện có và yêu cầu thị trường
+- **Lấp đầy khoảng cách:** Build (Tự xây), Borrow (Vay mượn/Liên kết), Buy (Mua/M&A)`,
+
+      '3.3': `## 3.3. Các công cụ tổng hợp và định vị chiến lược
+### Ma trận SWOT
+- **4 nhóm phối hợp:** SO (Tấn công), ST (Hóa giải), WO (Khắc phục), WT (Phòng thủ)
+### Ma trận BCG
+- **Tiêu chí:** Tốc độ tăng trưởng & Thị phần
+- **4 nhóm:** Ngôi sao, Dấu hỏi, Bò sữa, Chó
+### Ma trận McKinsey
+- **Tiêu chí:** Sức hấp dẫn của ngành & Vị thế cạnh tranh
+- **Chiến lược:** Đầu tư phát triển, Đầu tư chọn lọc, Thu hoạch/Rút lui`
+    };
+
+    function getMarkdownByFilter(filterKey) {
+      const rootTitle = `# CHƯƠNG 3. PHÂN TÍCH NỘI BỘ VÀ NĂNG LỰC QUỐC TẾ HÓA\n`;
+      if (filterKey === 'all') {
+        return rootTitle + branches['3.1'] + '\n' + branches['3.2'] + '\n' + branches['3.3'];
+      }
+      return rootTitle + (branches[filterKey] || '');
+    }
+
+    // 2. CƠ SỞ DỮ LIỆU LÝ THUYẾT CHUYÊN SÂU
+    const knowledgeDB = {
+      overview: {
+        title: 'Tổng quan & 4 Mục tiêu Chương 3',
+        badge: 'Mục tiêu cốt lõi',
+        html: `
+          <div class="p-3.5 bg-brand-50 dark:bg-slate-700/50 rounded-xl border border-brand-100 dark:border-slate-600 text-xs space-y-2">
+            <p><b>1. Phân tích chuỗi giá trị:</b> Xác định các khâu tạo ra giá trị và lợi thế cạnh tranh.</p>
+            <p><b>2. Nhận diện nguồn lực & năng lực cốt lõi:</b> Xây dựng lợi thế cạnh tranh bền vững qua khung VRIN/VRIO.</p>
+            <p><b>3. Đánh giá năng lực quốc tế hóa:</b> Xem xét khả năng vươn ra thị trường toàn cầu.</p>
+            <p><b>4. Vận dụng công cụ chiến lược:</b> Sử dụng thành thạo các mô hình SWOT, BCG và McKinsey.</p>
+          </div>
+          <div class="text-xs text-slate-600 dark:text-slate-300 space-y-2">
+            <h4 class="font-bold text-slate-900 dark:text-white">4 Câu hỏi dẫn dắt vào bài:</h4>
+            <ul class="list-disc pl-4 space-y-1">
+              <li>Những nguồn lực và năng lực nào tạo nên lợi thế cạnh tranh của một DN như Vinamilk?</li>
+              <li>Trong số đó, đâu là lợi thế thực sự bền vững và đâu chỉ là lợi thế tạm thời?</li>
+              <li>Vì sao một DN mạnh ở thị trường nội địa chưa chắc thành công khi ra nước ngoài?</li>
+              <li>DN nên phân bổ nguồn lực ra sao giữa các dòng sản phẩm ở những giai đoạn phát triển khác nhau?</li>
+            </ul>
+          </div>
+        `
+      },
+      porter: {
+        title: 'Mô hình Chuỗi giá trị của Porter (1985)',
+        badge: 'Mục 3.1.1',
+        html: `
+          <div class="text-xs space-y-3">
+            <p class="text-slate-600 dark:text-slate-300">
+              Xuất bản trong cuốn sách kinh điển <i>"Competitive Advantage" (1985)</i> của Michael Porter, chia hoạt động nội bộ thành 2 nhóm để tối ưu chi phí, tạo giá trị gia tăng và hỗ trợ quyết định <b>Make-or-Buy</b> (tự sản xuất hay thuê ngoài).
+            </p>
+            <div class="p-3 bg-slate-100 dark:bg-slate-700/60 rounded-lg space-y-1">
+              <div class="font-bold text-brand-600 dark:text-brand-400">5 Hoạt động chính (Primary Activities):</div>
+              <p>1. <b>Hậu cần đầu vào (Inbound Logistics):</b> Tiếp nhận, lưu trữ nguyên vật liệu.<br/>
+              2. <b>Vận hành / Sản xuất (Operations):</b> Chế biến nguyên liệu thành thành phẩm.<br/>
+              3. <b>Hậu cần đầu ra (Outbound Logistics):</b> Lưu kho và phân phối sản phẩm.<br/>
+              4. <b>Marketing & Bán hàng:</b> Quảng cáo, định giá, quản lý kênh phân phối.<br/>
+              5. <b>Dịch vụ khách hàng (Service):</b> Bảo hành, sửa chữa, tư vấn sau bán.</p>
+            </div>
+            <div class="p-3 bg-slate-100 dark:bg-slate-700/60 rounded-lg space-y-1">
+              <div class="font-bold text-emerald-600 dark:text-emerald-400">4 Hoạt động hỗ trợ (Support Activities):</div>
+              <p>• <b>Cơ sở hạ tầng DN:</b> Quản trị chung, chiến lược, pháp lý, tài chính, chất lượng.<br/>
+              • <b>Quản trị nguồn nhân lực:</b> Tuyển dụng, đào tạo, đãi ngộ.<br/>
+              • <b>Phát triển công nghệ:</b> R&D, CNTT, tự động hóa.<br/>
+              • <b>Mua sắm / Thu mua (Procurement):</b> Mua nguyên vật liệu, máy móc, dịch vụ.</p>
+            </div>
+            <div class="border-l-4 border-amber-500 pl-3 py-1 space-y-1">
+              <div class="font-bold text-amber-600 dark:text-amber-400">5 Hạn chế của mô hình gốc (1985) & Xu hướng GVC:</div>
+              <p class="text-slate-600 dark:text-slate-300">
+                1. <b>Tuyến tính nội bộ:</b> Giới hạn trong một DN đơn lẻ, chưa giải thích chuỗi giá trị toàn cầu (GVC - Gereffi 1994, 2005; hậu COVID-19 ưu tiên "sức chống chịu rủi ro" theo Gereffi 2020, Kano & Oh 2020).<br/>
+                2. <b>Khó áp dụng cho dịch vụ thuần túy.</b><br/>
+                3. <b>Ít chú trọng tài sản vô hình.</b><br/>
+                4. <b>Tính tĩnh tại tại một thời điểm.</b><br/>
+                5. <b>Bỏ qua "Lớp dữ liệu" (Data Layer):</b> Dữ liệu IoT trang trại, cảm biến nhiệt độ dây chuyền, GPS xe tải, hành vi TMĐT và phản hồi sau bán.
+              </p>
+            </div>
+          </div>
+        `
+      },
+      generic: {
+        title: 'Ba Chiến lược Cạnh tranh Cấp đơn vị kinh doanh',
+        badge: 'Mục 3.1.1',
+        html: `
+          <div class="text-xs space-y-3">
+            <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+              <h4 class="font-bold text-brand-600 dark:text-brand-400">1. Dẫn đầu về chi phí (Cost Leadership)</h4>
+              <p class="mt-1 text-slate-600 dark:text-slate-300">
+                • <b>Mục tiêu:</b> Thị trường đại chúng (Broad market) với chi phí thấp nhất ngành.<br/>
+                • <b>Ví dụ:</b> Thế Giới Di Động (MWG), Vietjet Air.<br/>
+                • <b>Rủi ro:</b> Cạnh tranh giá từ đối thủ mới; dễ mất khách nếu hạ giá mà quên chất lượng.
+              </p>
+            </div>
+            <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+              <h4 class="font-bold text-emerald-600 dark:text-emerald-400">2. Khác biệt hóa (Differentiation)</h4>
+              <p class="mt-1 text-slate-600 dark:text-slate-300">
+                • <b>Mục tiêu:</b> Thị trường đại chúng với sản phẩm độc đáo, định giá cao (Premium).<br/>
+                • <b>Ví dụ:</b> Apple (hệ sinh thái iOS), Vinamilk (trang trại công nghệ cao, sữa hữu cơ).<br/>
+                • <b>Rủi ro:</b> Chi phí R&D quá cao; khách hàng thay đổi thị hiếu.
+              </p>
+            </div>
+            <div class="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+              <h4 class="font-bold text-amber-600 dark:text-amber-400">3. Tập trung (Focus / Niche Strategy)</h4>
+              <p class="mt-1 text-slate-600 dark:text-slate-300">
+                • <b>Mục tiêu:</b> Phân khúc hẹp / thị trường ngách (theo chi phí thấp hoặc khác biệt hóa).<br/>
+                • <b>Ví dụ:</b> Rolex, Hermès, xe lăn y tế cao cấp, sữa đặc trị cho người tiểu đường.<br/>
+                • <b>Rủi ro:</b> Phân khúc quá nhỏ bị thu hẹp hoặc bị các ông lớn nhảy vào chiếm thị phần.
+              </p>
+            </div>
+          </div>
+        `
+      },
+      vrio: {
+        title: 'Khung VRIN (1991), VRIO (1995) & Năng lực động',
+        badge: 'Mục 3.1.2',
+        html: `
+          <div class="text-xs space-y-3">
+            <div class="p-3 bg-slate-100 dark:bg-slate-700/60 rounded-lg space-y-1">
+              <div class="font-bold text-brand-600 dark:text-brand-400">Khung VRIN (Barney, 1991) & VRIO (Barney, 1995):</div>
+              <p>• <b>V (Valuable):</b> Có giá trị • <b>R (Rare):</b> Hiếm • <b>I (Inimitable):</b> Khó bắt chước • <b>N (Non-substitutable):</b> Khó thay thế.<br/>
+              • <b>Bản nâng cấp VRIO (1995):</b> Thay chữ N bằng <b>O (Organization - Tổ chức)</b> vì sở hữu nguồn lực tốt là chưa đủ, phải có bộ máy quản trị đồng bộ mới chuyển hóa thành lợi thế thực tế.</p>
+            </div>
+            <div class="border-l-4 border-rose-500 pl-3 py-1">
+              <div class="font-bold text-rose-600 dark:text-rose-400">3 Sai lầm thường gặp khi áp dụng VRIN:</div>
+              <p class="text-slate-600 dark:text-slate-300">
+                1. Đồng nhất "Tài sản" với "Lợi thế".<br/>
+                2. Dừng lại ở chữ V (nhà máy hiện đại có giá trị nhưng không hiếm).<br/>
+                3. Dừng ở chữ R mà bỏ quên chữ I (bao bì/công thức mới dễ bị sao chép → chỉ là lợi thế tạm thời).
+              </p>
+            </div>
+            <div class="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-800">
+              <div class="font-bold text-emerald-700 dark:text-emerald-300">Năng lực động (Dynamic Capabilities - Teece et al., 1997):</div>
+              <p class="mt-1 text-slate-600 dark:text-slate-300">
+                Khả năng liên tục cập nhật và làm mới năng lực để thích nghi với môi trường biến động (VD: Vinamilk điều chỉnh chuỗi cung ứng lạnh khi sang thị trường hạ tầng logistics kém phát triển).
+              </p>
+            </div>
+          </div>
+        `
+      },
+      intl: {
+        title: '5 Nhóm Năng lực Quốc tế hóa',
+        badge: 'Mục 3.2',
+        html: `
+          <div class="text-xs space-y-2.5">
+            <p class="text-slate-600 dark:text-slate-300">
+              5 nhóm năng lực quyết định khả năng vươn ra thị trường nước ngoài:
+            </p>
+            <div class="p-2.5 bg-slate-100 dark:bg-slate-700/60 rounded-lg"><b>1. Sản phẩm & Công nghệ:</b> Thích ứng và nâng cấp đạt chuẩn quốc tế.</div>
+            <div class="p-2.5 bg-slate-100 dark:bg-slate-700/60 rounded-lg"><b>2. Tài chính:</b> Chịu đựng chi phí thâm nhập và rủi ro thị trường mới.</div>
+            <div class="p-2.5 bg-slate-100 dark:bg-slate-700/60 rounded-lg"><b>3. Tổ chức & Nhân sự đa văn hóa:</b> Quản trị linh hoạt, thấu hiểu đa văn hóa.</div>
+            <div class="p-2.5 bg-slate-100 dark:bg-slate-700/60 rounded-lg"><b>4. Marketing quốc tế:</b> Thấu hiểu thị hiếu, xây dựng thương hiệu & phân phối quốc tế.</div>
+            <div class="p-2.5 bg-slate-100 dark:bg-slate-700/60 rounded-lg"><b>5. Kinh nghiệm tích lũy:</b> Học hỏi từ các lần thâm nhập trước để giảm rủi ro.</div>
+          </div>
+        `
+      },
+      gap: {
+        title: 'Khoảng cách năng lực & Build - Borrow - Buy',
+        badge: 'Mục 3.2.1 & 3.2.2',
+        html: `
+          <div class="text-xs space-y-3">
+            <div class="p-3 bg-slate-100 dark:bg-slate-700/60 rounded-lg space-y-1">
+              <div class="font-bold text-brand-600 dark:text-brand-400">Đo lường khoảng cách (Thang điểm 1 - 5):</div>
+              <p>So sánh <b>Năng lực hiện tại</b> (1-5) với <b>Yêu cầu thị trường</b> (1-5). Khoảng cách càng lớn → rủi ro càng cao → phải chọn phương thức thâm nhập thận trọng (VD: liên doanh khi năng lực marketing đạt 2/5 mà thị trường đòi hỏi 4/5).</p>
+            </div>
+            <div class="p-3 border border-slate-200 dark:border-slate-700 rounded-lg space-y-1.5">
+              <div class="font-bold text-emerald-600 dark:text-emerald-400">3 Con đường lấp đầy khoảng cách (Capron & Mitchell, 2009, 2012):</div>
+              <p>• <b>Build (Tự xây dựng):</b> Phát triển nội bộ qua R&D, đào tạo (khi mức độ tương đồng cao hoặc gắn chặt với văn hóa quản trị).<br/>
+              • <b>Borrow (Vay mượn):</b> Cấp phép, liên minh hoặc liên doanh chiến lược.<br/>
+              • <b>Buy (Mua / M&A):</b> Mua bán & sáp nhập để có toàn quyền kiểm soát.</p>
+            </div>
+          </div>
+        `
+      },
+      swot: {
+        title: 'Ma trận SWOT & 4 Nhóm Phối hợp Chiến lược',
+        badge: 'Mục 3.3.1',
+        html: `
+          <div class="text-xs space-y-3">
+            <div class="p-3 bg-slate-100 dark:bg-slate-700/60 rounded-lg space-y-1">
+              <div class="font-bold text-brand-600 dark:text-brand-400">Nguyên tắc & Hạn chế (Hill & Westbrook, 1997):</div>
+              <p>• Phân biệt đúng <b>Nội bộ (S, W - kiểm soát được)</b> và <b>Bên ngoài (O, T - không kiểm soát được)</b>.<br/>
+              • Giới hạn <b>3 đến 5 yếu tố</b> quan trọng nhất mỗi ô, có bằng chứng thực tế và xếp hạng ưu tiên.<br/>
+              • Khắc phục tính tĩnh tại và thiếu trọng số bằng cách chuyển hóa thành 4 nhóm hành động có người phụ trách & thời hạn.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                <b>S-O (Tấn công):</b> Dùng điểm mạnh khai thác tối đa cơ hội.
+              </div>
+              <div class="p-2.5 bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 rounded-lg">
+                <b>S-T (Hóa giải / Phòng thủ chủ động):</b> Dùng thế mạnh giảm nhẹ thách thức.
+              </div>
+              <div class="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <b>W-O (Khắc phục / Cải thiện):</b> Cải thiện điểm yếu để nắm bắt cơ hội.
+              </div>
+              <div class="p-2.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-lg">
+                <b>W-T (Phòng thủ / Phòng ngừa):</b> Phòng thủ hạn chế tối đa tổn thất.
+              </div>
+            </div>
+          </div>
+        `
+      },
+      bcg: {
+        title: 'Ma trận BCG (Bruce Henderson, 1970)',
+        badge: 'Mục 3.3.2',
+        html: `
+          <div class="text-xs space-y-3">
+            <p class="text-slate-600 dark:text-slate-300">
+              Định vị trên 2 trục: <b>Tốc độ tăng trưởng thị trường</b> (mốc chuẩn thường lấy 10%/năm) và <b>Thị phần tương đối</b> (chia cho đối thủ lớn nhất; >1 là dẫn đầu). Nguyên tắc: Lấy dòng tiền từ <b>Bò sữa</b> nuôi <b>Ngôi sao</b> và <b>Dấu hỏi</b>.
+            </p>
+            <div class="border-l-4 border-rose-500 pl-3 py-1">
+              <div class="font-bold text-rose-600 dark:text-rose-400">3 Hạn chế cần lưu ý:</div>
+              <p class="text-slate-600 dark:text-slate-300">
+                1. Quá đơn giản hóa (chỉ dựa vào 2 biến số).<br/>
+                2. Giả định cứng nhắc về đường cong kinh nghiệm.<br/>
+                3. Rủi ro "khai tử" nhầm nhóm <b>Chó</b> (vốn có thể đang giữ chân khách hàng trung thành hoặc cản bước đối thủ đa dạng hóa).
+              </p>
+            </div>
+          </div>
+        `
+      },
+      mckinsey: {
+        title: 'Ma trận McKinsey / GE (Cấu trúc 9 ô)',
+        badge: 'Mục 3.3.3',
+        html: `
+          <div class="text-xs space-y-3">
+            <p class="text-slate-600 dark:text-slate-300">
+              Sử dụng 2 trục đa tiêu chí có trọng số (tổng = 1,00): <b>Sức hấp dẫn của ngành</b> và <b>Vị thế cạnh tranh của DN</b>.
+            </p>
+            <div class="border-l-4 border-amber-500 pl-3 py-1">
+              <div class="font-bold text-amber-600 dark:text-amber-400">Hạn chế của Ma trận McKinsey:</div>
+              <p class="text-slate-600 dark:text-slate-300">
+                • Tính chủ quan cao khi chọn tiêu chí và gán trọng số.<br/>
+                • Thiếu tính động (chỉ chụp tại một thời điểm cố định).<br/>
+                • Nguy cơ đếm 2 lần cùng một yếu tố do trùng lặp tiêu chí giữa hai trục.
+              </p>
+            </div>
+          </div>
+        `
+      }
+    };
+
+    // 3. LOGIC PHÒNG LAB MÔ PHỎNG (VRIO, GAP, MCKINSEY)
+    function loadVrioPreset(type) {
+      const v = document.getElementById('chk-v');
+      const r = document.getElementById('chk-r');
+      const i = document.getElementById('chk-i');
+      const o = document.getElementById('chk-o');
+
+      if (type === 'vnm_dist') {
+        v.checked = true; r.checked = true; i.checked = true; o.checked = true;
+      } else if (type === 'vnm_farm') {
+        v.checked = true; r.checked = true; i.checked = false; o.checked = true;
+      } else if (type === 'vnm_pack') {
+        v.checked = true; r.checked = false; i.checked = false; o.checked = true;
+      } else if (type === 'azure_no_o') {
+        v.checked = true; r.checked = true; i.checked = true; o.checked = false;
+      }
+      evaluateVRIO();
+    }
+
+    function evaluateVRIO() {
+      const v = document.getElementById('chk-v').checked;
+      const r = document.getElementById('chk-r').checked;
+      const i = document.getElementById('chk-i').checked;
+      const o = document.getElementById('chk-o').checked;
+      const box = document.getElementById('vrio-result');
+
+      if (!v) {
+        box.className = 'p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800';
+        box.innerHTML = `<div class="font-bold text-rose-700 dark:text-rose-300">❌ Bất lợi cạnh tranh (Competitive Disadvantage)</div>
+          <p class="mt-1 text-slate-600 dark:text-slate-300">Nguồn lực không tạo ra giá trị kinh tế (Thiếu V). Cần tránh Sai lầm 1: Đồng nhất mọi tài sản hữu hình với lợi thế.</p>`;
+      } else if (v && !r) {
+        box.className = 'p-3 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600';
+        box.innerHTML = `<div class="font-bold text-slate-800 dark:text-slate-100">⚖️ Ngang bằng cạnh tranh / Lợi thế ngắn hạn</div>
+          <p class="mt-1 text-slate-600 dark:text-slate-300">Có giá trị (V) nhưng không hiếm (Thiếu R & I) — tương tự như dây chuyền máy móc hoặc công thức/bao bì dễ mua sắm trên thị trường (Cảnh báo Sai lầm 2).</p>`;
+      } else if (v && r && !i) {
+        box.className = 'p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800';
+        box.innerHTML = `<div class="font-bold text-amber-700 dark:text-amber-300">⏳ Lợi thế cạnh tranh tạm thời (Temporary Advantage)</div>
+          <p class="mt-1 text-slate-600 dark:text-slate-300">Có giá trị (V) và Hiếm (R) nhưng <b>dễ bị bắt chước (Thiếu I)</b> — điển hình như hệ thống trang trại bò sữa (đối thủ lớn có vốn hoàn toàn có thể đầu tư tương tự). Cảnh báo Sai lầm 3!</p>`;
+      } else if (v && r && i && !o) {
+        box.className = 'p-3 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800';
+        box.innerHTML = `<div class="font-bold text-sky-700 dark:text-sky-300">🧩 Tiềm năng chưa khai thác (Unused Advantage - Thiếu chữ O)</div>
+          <p class="mt-1 text-slate-600 dark:text-slate-300">Đạt V-R-I nhưng bộ máy <b>Tổ chức (O)</b> lỏng lẻo, chưa đồng bộ cơ cấu và nhân sự để thương mại hóa (Bài học từ bước nâng cấp VRIN 1991 lên VRIO 1995 của Microsoft Azure).</p>`;
+      } else {
+        box.className = 'p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800';
+        box.innerHTML = `<div class="font-bold text-emerald-700 dark:text-emerald-300">🏆 LỢI THẾ CẠNH TRANH BỀN VỮNG (Sustained Competitive Advantage)</div>
+          <p class="mt-1 text-slate-600 dark:text-slate-300">Thỏa mãn trọn vẹn <b>V + R + I + N/O</b>! Điển hình như Hệ sinh thái iOS của Apple, Microsoft Azure (sau tái cấu trúc Cloud-first) và Mạng lưới ~240.000–250.000 điểm bán + Thương hiệu lâu năm của Vinamilk.</p>`;
+      }
+    }
+
+    function loadGapPreset(company) {
+      if (company === 'vinamilk') {
+        document.getElementById('gap-curr').value = 3.0;
+        document.getElementById('gap-req').value = 4.5;
+      } else {
+        document.getElementById('gap-curr').value = 4.5;
+        document.getElementById('gap-req').value = 4.5;
+      }
+      calculateGap();
+    }
+
+    function calculateGap() {
+      const curr = parseFloat(document.getElementById('gap-curr').value);
+      const req = parseFloat(document.getElementById('gap-req').value);
+      const gap = +(req - curr).toFixed(1);
+
+      document.getElementById('gap-val-display').innerText = `Hiện tại: ${curr.toFixed(1)} | Yêu cầu: ${req.toFixed(1)}`;
+      const res = document.getElementById('gap-result');
+
+      if (gap <= 0) {
+        res.className = 'p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800';
+        res.innerHTML = `<div class="font-bold text-emerald-700 dark:text-emerald-300">✅ Không có khoảng cách thiếu hụt (Gap = ${gap})</div>
+          <p class="mt-1 text-slate-600 dark:text-slate-300">Năng lực nội bộ hoàn toàn đáp ứng yêu cầu thị trường (như Nestlé). Chiến lược: Tự tin nhân bản hệ thống sẵn có (<b>Build / Tự triển khai</b>) với tốc độ nhanh.</p>`;
+      } else if (gap <= 1.0) {
+        res.className = 'p-3 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800';
+        res.innerHTML = `<div class="font-bold text-sky-700 dark:text-sky-300">⚡ Khoảng cách vừa phải (Gap = +${gap})</div>
+          <p class="mt-1 text-slate-600 dark:text-slate-300">Năng lực hiện tại khá gần với năng lực cần có. Khuyến nghị theo Capron & Mitchell (2012): Ưu tiên <b>Build (Tự xây dựng/đào tạo)</b> kết hợp <b>Borrow (Hợp tác phân phối)</b>.</p>`;
+      } else {
+        res.className = 'p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800';
+        res.innerHTML = `<div class="font-bold text-amber-700 dark:text-amber-300">⚠️ Khoảng cách năng lực lớn (Gap = +${gap}) — Rủi ro cao!</div>
+          <p class="mt-1 text-slate-600 dark:text-slate-300">Thị trường đòi hỏi khắt khe hơn nhiều so với năng lực hiện có. Không nên tự đầu tư dàn trải 100% từ đầu. Khuyến nghị: Chọn <b>Borrow (Liên doanh với đối tác bản địa)</b> như Vinamilk tại New Zealand hoặc <b>Buy (M&A)</b> như thương vụ mua Driftwood (Mỹ) và Angkor Milk (Campuchia).</p>`;
+      }
+    }
+
+    function updateMcKinsey() {
+      const c1 = parseFloat(document.getElementById('mck-c1').value) || 1;
+      const c2 = parseFloat(document.getElementById('mck-c2').value) || 1;
+      const c3 = parseFloat(document.getElementById('mck-c3').value) || 1;
+      const c4 = parseFloat(document.getElementById('mck-c4').value) || 1;
+      const pos = parseFloat(document.getElementById('mck-pos').value) || 1;
+
+      const attractScore = +(c1 * 0.30 + c2 * 0.25 + c3 * 0.25 + c4 * 0.20).toFixed(2);
+
+      // Quy đổi điểm (1-5) sang tọa độ hàng/cột (0, 1, 2)
+      // Hàng: Sức hấp dẫn Cao (>=3.67 -> row 0), Trung bình (2.34 - 3.66 -> row 1), Thấp (<2.34 -> row 2)
+      const row = attractScore >= 3.67 ? 0 : (attractScore >= 2.34 ? 1 : 2);
+      // Cột: Vị thế Mạnh (>=3.67 -> col 0), Trung bình (2.34 - 3.66 -> col 1), Yếu (<2.34 -> col 2)
+      const col = pos >= 3.67 ? 0 : (pos >= 2.34 ? 1 : 2);
+
+      const cells = [
+        { r: 0, c: 0, label: 'Đầu tư, phát triển', zone: 'grow' },
+        { r: 0, c: 1, label: 'Đầu tư, phát triển', zone: 'grow' },
+        { r: 0, c: 2, label: 'Chọn lọc, giữ vững', zone: 'hold' },
+        { r: 1, c: 0, label: 'Đầu tư, phát triển', zone: 'grow' },
+        { r: 1, c: 1, label: 'Chọn lọc, giữ vững', zone: 'hold' },
+        { r: 1, c: 2, label: 'Thu hoạch, rút lui', zone: 'harvest' },
+        { r: 2, c: 0, label: 'Chọn lọc, giữ vững', zone: 'hold' },
+        { r: 2, c: 1, label: 'Thu hoạch, rút lui', zone: 'harvest' },
+        { r: 2, c: 2, label: 'Thu hoạch, rút lui', zone: 'harvest' }
+      ];
+
+      const gridEl = document.getElementById('mckinsey-grid');
+      gridEl.innerHTML = cells.map(cell => {
+        const isActive = cell.r === row && cell.c === col;
+        let bg = cell.zone === 'grow'
+          ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border-emerald-300'
+          : (cell.zone === 'hold'
+            ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border-amber-300'
+            : 'bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border-rose-300');
+
+        if (isActive) {
+          bg += ' ring-2 ring-brand-600 dark:ring-brand-400 font-bold scale-[1.03] shadow';
+        } else {
+          bg += ' opacity-75';
+        }
+        return `<div class="p-2 rounded border ${bg} transition">${isActive ? '📍 ' : ''}${cell.label}</div>`;
+      }).join('');
+
+      const activeCell = cells.find(cell => cell.r === row && cell.c === col);
+      document.getElementById('mckinsey-summary').innerHTML = `
+        <b>Tổng điểm Sức hấp dẫn ngành:</b> <span class="text-brand-600 dark:text-brand-400 font-bold">${attractScore} / 5.00</span> •
+        <b>Vị thế cạnh tranh:</b> <span class="text-brand-600 dark:text-brand-400 font-bold">${pos.toFixed(2)} / 5.00</span><br/>
+        👉 <b>Định hướng chiến lược:</b> <span class="underline font-bold">${activeCell.label}</span>
+      `;
+    }
+
+    // 4. HỆ THỐNG TRẮC NGHIỆM KIỂM TRA KIẾN THỨC (QUIZ)
+    const quizData = [
+      {
+        q: '1. Theo Barney (1995), lý do cốt lõi của việc nâng cấp từ khung VRIN (1991) lên VRIO là gì?',
+        options: [
+          'A. Thay tiêu chí Giá trị (V) bằng Vận hành (O)',
+          'B. Khẳng định sở hữu nguồn lực V-R-I tốt là chưa đủ, DN phải có bộ máy Tổ chức (O) đồng bộ mới khai thác thành lợi thế thực tế',
+          'C. Chỉ đánh giá các nguồn lực hữu hình như nhà máy, trang trại',
+          'D. Bỏ qua tính hiếm (R) của nguồn lực'
+        ],
+        correct: 1,
+        explain: 'Trong khung VRIO (1995), chữ O (Organization) nhấn mạnh cơ cấu tổ chức, kiểm soát và đãi ngộ đồng bộ để thương mại hóa nguồn lực (như Microsoft tái cấu trúc Cloud-first cho Azure).'
+      },
+      {
+        q: '2. Khi phân tích nguồn lực của Vinamilk qua khung VRIN/VRIO, vì sao hệ thống trang trại công nghệ cao chỉ được xếp là "Lợi thế tạm thời"?',
+        options: [
+          'A. Vì không mang lại giá trị (Thiếu V)',
+          'B. Vì thiếu chữ I (Khó bắt chước) — các đối thủ lớn có vốn hoàn toàn có thể đầu tư tương tự',
+          'C. Vì không có bộ máy quản lý',
+          'D. Vì chỉ phục vụ xuất khẩu'
+        ],
+        correct: 1,
+        explain: 'Trang trại hiện đại có giá trị (V) và hiếm (R), nhưng thiếu chữ I (Inimitable) do đối thủ mạnh về tài chính có thể mua sắm công nghệ tương đương.'
+      },
+      {
+        q: '3. Theo Capron & Mitchell (2009, 2012), thương vụ Vinamilk mua lại công ty sữa Driftwood tại Mỹ thuộc con đường lấp đầy khoảng cách năng lực nào?',
+        options: [
+          'A. Build (Tự xây dựng)',
+          'B. Borrow (Vay mượn qua cấp phép)',
+          'C. Buy (Mua sắm / Thâu tóm M&A)',
+          'D. Thu hoạch và rút lui'
+        ],
+        correct: 2,
+        explain: 'Mua lại Driftwood (Mỹ) và nắm cổ phần chi phối tại Angkor Milk (Campuchia) là con đường Buy (M&A) để sở hữu ngay nhà máy và tệp khách hàng hiện hữu.'
+      },
+      {
+        q: '4. Đâu là một trong 3 hạn chế lớn của Ma trận BCG được nhấn mạnh trong bài giảng?',
+        options: [
+          'A. Rủi ro "khai tử" nhầm nhóm Chó (vốn có thể đang giữ chân khách hàng trung thành hoặc cản bước đối thủ)',
+          'B. Có quá nhiều tiêu chí định tính phức tạp',
+          'C. Chia ma trận thành 9 ô gây rối mắt',
+          'D. Không xét đến tốc độ tăng trưởng thị trường'
+        ],
+        correct: 0,
+        explain: 'BCG có 3 hạn chế: (1) Quá đơn giản hóa (chỉ 2 biến số); (2) Giả định cứng nhắc về đường cong kinh nghiệm; (3) Rủi ro khai tử nhầm nhóm Chó.'
+      },
+      {
+        q: '5. Theo nghiên cứu của Hill & Westbrook (1997), sai lầm nghiêm trọng nhất khiến phân tích SWOT tại nhiều doanh nghiệp trở nên vô dụng là gì?',
+        options: [
+          'A. Chỉ viết 3-5 yếu tố mỗi ô',
+          'B. Chỉ dừng lại ở bước liệt kê danh sách dài chung chung mà không chuyển hóa thành 4 nhóm phối hợp hành động (SO, WO, ST, WT)',
+          'C. Đính kèm quá nhiều dữ liệu thực tế',
+          'D. So sánh trực tiếp với đối thủ cạnh tranh'
+        ],
+        correct: 1,
+        explain: 'Giá trị của SWOT không nằm ở việc liệt kê mà ở việc ghép nối thành 4 nhóm chiến lược hành động cụ thể (SO, WO, ST, WT) kèm người phụ trách và thời hạn.'
+      }
+    ];
+
+    function renderQuiz() {
+      const container = document.getElementById('quiz-container');
+      container.innerHTML = quizData.map((item, qIdx) => `
+        <div class="p-3 bg-slate-50 dark:bg-slate-700/40 rounded-lg space-y-2">
+          <div class="font-bold text-slate-800 dark:text-slate-100">${item.q}</div>
+          <div class="space-y-1">
+            ${item.options.map((opt, oIdx) => `
+              <button onclick="answerQuiz(${qIdx}, ${oIdx})" id="q-${qIdx}-opt-${oIdx}" class="w-full text-left px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-slate-700 transition">
+                ${opt}
+              </button>
+            `).join('')}
+          </div>
+          <div id="q-${qIdx}-feedback" class="hidden p-2 rounded text-[11px]"></div>
+        </div>
+      `).join('');
+    }
+
+    function answerQuiz(qIdx, selectedIdx) {
+      const item = quizData[qIdx];
+      const fb = document.getElementById(`q-${qIdx}-feedback`);
+      fb.classList.remove('hidden');
+
+      if (selectedIdx === item.correct) {
+        fb.className = 'p-2 rounded text-[11px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-200 border border-emerald-200';
+        fb.innerHTML = `<b>✅ Chính xác!</b> ${item.explain}`;
+      } else {
+        fb.className = 'p-2 rounded text-[11px] bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-200 border border-rose-200';
+        fb.innerHTML = `<b>❌ Chưa chính xác.</b> ${item.explain}`;
+      }
+    }
+
+    function resetQuiz() {
+      renderQuiz();
+    }
+
+    // 5. KHỞI TẠO MARKMAP & SỰ KIỆN TƯƠNG TÁC
+    let mmInstance = null;
+    let transformer = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const { Transformer, Markmap } = window.markmap;
+      transformer = new Transformer();
+
+      const { root } = transformer.transform(getMarkdownByFilter('all'));
+      const svgEl = document.getElementById('mindmap');
+
+      mmInstance = Markmap.create(
+        svgEl,
+        {
+          autoFit: true,
+          duration: 450,
+          maxWidth: 340,
+          paddingX: 16,
+          spacingVertical: 10,
+          spacingHorizontal: 75
+        },
+        root
+      );
+
+      renderKnowledgeTopic('overview');
+      evaluateVRIO();
+      calculateGap();
+      updateMcKinsey();
+      renderQuiz();
+
+      svgEl.addEventListener('click', (e) => {
+        const foreignObj = e.target.closest('.markmap-foreign');
+        if (!foreignObj) return;
+        mapNodeTextToTopic(foreignObj.innerText.toLowerCase());
+      });
+    });
+
+    function mapNodeTextToTopic(text) {
+      let topicKey = 'overview';
+      if (text.includes('porter') || text.includes('hoạt động chính') || text.includes('hoạt động hỗ trợ') || text.includes('chuỗi giá trị')) {
+        topicKey = 'porter';
+      } else if (text.includes('cạnh tranh') || text.includes('chi phí') || text.includes('khác biệt hóa') || text.includes('tập trung')) {
+        topicKey = 'generic';
+      } else if (text.includes('nguồn lực') || text.includes('vrin') || text.includes('vrio') || text.includes('năng lực động')) {
+        topicKey = 'vrio';
+      } else if (text.includes('5 năng lực') || text.includes('quốc tế hóa')) {
+        topicKey = 'intl';
+      } else if (text.includes('khoảng cách') || text.includes('build') || text.includes('borrow') || text.includes('buy')) {
+        topicKey = 'gap';
+      } else if (text.includes('swot') || text.includes('phối hợp')) {
+        topicKey = 'swot';
+      } else if (text.includes('bcg') || text.includes('ngôi sao') || text.includes('bò sữa')) {
+        topicKey = 'bcg';
+      } else if (text.includes('mckinsey') || text.includes('sức hấp dẫn') || text.includes('thu hoạch')) {
+        topicKey = 'mckinsey';
+      }
+
+      const drawer = document.getElementById('strategy-drawer');
+      if (drawer.classList.contains('hidden')) drawer.classList.remove('hidden');
+      switchTab('inspector');
+      document.getElementById('topic-select').value = topicKey;
+      renderKnowledgeTopic(topicKey);
+    }
+
+    function renderKnowledgeTopic(key) {
+      const item = knowledgeDB[key] || knowledgeDB.overview;
+      document.getElementById('knowledge-content').innerHTML = `
+        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2.5">
+          <h3 class="font-bold text-slate-900 dark:text-white text-base">${item.title}</h3>
+          <span class="text-[11px] font-semibold px-2 py-0.5 bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 rounded-md whitespace-nowrap">${item.badge}</span>
+        </div>
+        ${item.html}
+      `;
+    }
+
+    function filterBranch(filterKey) {
+      if (!mmInstance || !transformer) return;
+      const { root } = transformer.transform(getMarkdownByFilter(filterKey));
+      mmInstance.setData(root);
+      mmInstance.fit();
+
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.className = 'filter-btn px-2.5 py-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 transition';
+      });
+      const activeBtn = document.getElementById(`filter-${filterKey}`);
+      if (activeBtn) {
+        activeBtn.className = 'filter-btn px-2.5 py-1.5 rounded-md bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm transition';
+      }
+    }
+
+    function zoomMap(factor) {
+      if (mmInstance) mmInstance.rescale(factor);
+    }
+
+    function fitMap() {
+      if (mmInstance) mmInstance.fit();
+    }
+
+    function walkTree(node, depth, maxDepth) {
+      node.payload = node.payload || {};
+      node.payload.fold = depth >= maxDepth ? 1 : 0;
+      if (node.children) {
+        node.children.forEach(child => walkTree(child, depth + 1, maxDepth));
+      }
+    }
+
+    function setFoldLevel(maxDepth) {
+      if (!mmInstance || !mmInstance.state || !mmInstance.state.data) return;
+      walkTree(mmInstance.state.data, 0, maxDepth);
+      mmInstance.renderData();
+      mmInstance.fit();
+    }
+
+    function switchTab(tabName) {
+      const tabs = ['inspector', 'casestudy', 'lab', 'review'];
+      tabs.forEach(t => {
+        const panel = document.getElementById(`panel-${t}`);
+        const btn = document.getElementById(`tab-${t}`);
+        if (t === tabName) {
+          panel.classList.remove('hidden');
+          btn.className = 'drawer-tab py-1.5 rounded-md bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm';
+        } else {
+          panel.classList.add('hidden');
+          btn.className = 'drawer-tab py-1.5 rounded-md text-slate-600 dark:text-slate-300';
+        }
+      });
+    }
+
+    function openLabTab() {
+      const drawer = document.getElementById('strategy-drawer');
+      if (drawer.classList.contains('hidden')) drawer.classList.remove('hidden');
+      switchTab('lab');
+    }
+
+    function toggleDrawer() {
+      const drawer = document.getElementById('strategy-drawer');
+      drawer.classList.toggle('hidden');
+      setTimeout(() => {
+        if (mmInstance) mmInstance.fit();
+      }, 300);
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      document.getElementById('btn-theme').innerText = isDark ? '☀️' : '🌙';
+    }
+
+    function exportSVG() {
+      const svgEl = document.getElementById('mindmap');
+      const serializer = new XMLSerializer();
+      let source = serializer.serializeToString(svgEl);
+      if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Mindmap-Chuong-3-Phan-Tich-Noi-Bo.svg';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
